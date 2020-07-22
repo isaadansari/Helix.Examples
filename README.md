@@ -14,3 +14,6 @@ implementations.
 
 Visit [helix.sitecore.net](https://helix.sitecore.net/) to learn more.
 
+## Docker example
+
+This repo has been modified to run using Docker! See the readme in the [Docker folder](Docker).

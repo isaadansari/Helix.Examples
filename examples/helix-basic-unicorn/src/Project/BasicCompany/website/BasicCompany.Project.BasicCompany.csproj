@@ -59,6 +59,10 @@
     <Content Include="Views\BasicCompany\Layouts\Default.cshtml" />
     <Content Include="App_Config\Include\Project\Project.BasicCompany.config" />
     <Content Include="App_Config\Include\Project\Project.BasicCompany.Serialization.config" />
+    <Content Include="App_Config\Include\Project\LiveMode.config" />
+    <Content Include="App_Config\Include\zzz.Override\IdentityServer.config" />
+    <Content Include="App_Config\Include\zzz.Override\Sitecore.Commerce.Engine.Connect.config" />
+    <Content Include="App_Config\Include\zzz.Override\Sitecore.Owin.Authentication.IdentityServer.config" />
     <None Include="Views\web.config" />
     <None Include="web.config" />
     <None Include="web.Debug.config">
