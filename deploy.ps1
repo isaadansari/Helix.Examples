@@ -8,7 +8,7 @@ $VSWHERE_EXE = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere
 $BUILD_SLN = Join-Path $PSScriptRoot "examples\helix-basic-unicorn\BasicCompany.sln"
 $BUILD_PROJ = Join-Path $PSScriptRoot "examples\helix-basic-unicorn\src\Environment\Website\Website.csproj"
 
-$synUrl = "http://localhost:44001/unicorn.aspx"
+$syncUrl = "http://localhost:44001/unicorn.aspx"
 $syncSecret = "749CABBC85EAD20CE55E2C6066F1BE375D2115696C8A8B24DB6ED1FD60613086"
 
 ## https://github.com/microsoft/vswhere/wiki/Find-MSBuild
@@ -58,6 +58,6 @@ Invoke-Expression "&`"$MSBUILD`" $BUILD_PROJ /p:DeployOnBuild=true /p:PublishPro
 Write-Host "Syncing Unicorn..." -ForegroundColor Green
 
 Import-Module $PSScriptRoot\build\tools\Unicorn\Unicorn.psm1
-Sync-Unicorn -ControlPanelUrl $synUrl -SharedSecret $syncSecret
+Sync-Unicorn -ControlPanelUrl $syncUrl -SharedSecret $syncSecret
 
 cd $PSScriptRoot
