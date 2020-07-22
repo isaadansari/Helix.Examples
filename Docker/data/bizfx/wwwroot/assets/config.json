@@ -1,0 +1,12 @@
+{
+    "EnvironmentName": "HabitatAuthoring",
+    "EngineUri": "https://commerce-authoring.helixexamples.local",
+    "IdentityServerUri": "https://identity.helixexamples.local",
+    "BizFxUri": "https://bizfx.helixexamples.local",
+    "Language": "en",
+    "Currency": "USD",
+    "ShopName": "CommerceEngineDefaultStorefront",
+    "LanguageCookieName": "selectedLanguage",
+    "EnvironmentCookieName": "selectedEnvironment",
+    "AutoCompleteTimeout_ms": 300
+}

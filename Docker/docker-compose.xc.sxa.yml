@@ -1,0 +1,305 @@
+version: '2.4'
+
+services:
+  sql:
+    image: ${REGISTRY}sitecore-xc-sxa-sqldev:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    volumes:
+      - .\data\sql${DB_INSTANCE}:C:\Data
+    isolation: ${ISOLATION}
+    restart: always    
+    mem_limit: ${MEM_LIMIT_SQL:-2GB}
+    ports:
+      - "44030:1433"
+    environment:
+      SA_PASSWORD: ${SQL_SA_PASSWORD}
+      ACCEPT_EULA: "Y"
+
+  solr:
+    image: ${REGISTRY}sitecore-xc-solr:${SITECORE_VERSION}-nanoserver-${NANOSERVER_VERSION}
+    volumes:
+      - .\data\solr:C:\Data
+    isolation: ${ISOLATION}
+    restart: always
+    mem_limit: ${MEM_LIMIT_SOLR:-1GB}
+    ports:
+      - "44035:8983"
+
+  xconnect:
+    image: ${REGISTRY}sitecore-xc-xconnect:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    volumes:
+      - .\data\xconnect:C:\inetpub\wwwroot\App_Data\logs
+    mem_limit: ${MEM_LIMIT_XCONNECT:-1GB}
+    isolation: ${ISOLATION}
+    environment:
+      SITECORE_LICENSE: ${SITECORE_LICENSE}
+      SITECORE_SITECORE:XCONNECT:COLLECTIONSEARCH:SERVICES:SOLR.SOLRREADERSETTINGS:OPTIONS:REQUIREHTTPS: 'false'
+      SITECORE_SITECORE:XCONNECT:SEARCHINDEXER:SERVICES:SOLR.SOLRWRITERSETTINGS:OPTIONS:REQUIREHTTPS: 'false'
+      SITECORE_CONNECTIONSTRINGS_MESSAGING: Data Source=sql;Database=Sitecore.Messaging;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_PROCESSING.ENGINE.STORAGE: Data Source=sql;Database=Sitecore.ProcessingEngineStorage;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_REPORTING: Data Source=sql;Database=Sitecore.Reporting;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_XDB.MARKETINGAUTOMATION: Data Source=sql;Database=Sitecore.MarketingAutomation;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_XDB.PROCESSING.POOLS: Data Source=sql;Database=Sitecore.Processing.Pools;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_XDB.REFERENCEDATA: Data Source=sql;Database=Sitecore.ReferenceData;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_COLLECTION: Data Source=sql;Database=Sitecore.Xdb.Collection.ShardMapManager;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_SOLRCORE: http://solr:8983/solr/sitecore_xdb
+    depends_on:
+      - sql
+      - solr
+
+  xconnect-automationengine:
+    image: ${REGISTRY}sitecore-xc-xconnect-automationengine:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    entrypoint: powershell.exe -Command "& C:\\tools\\entrypoints\\worker\\Development.ps1"
+    volumes:
+      - .\data\xconnect-automationengine:C:\worker\App_Data\logs
+    mem_limit: ${MEM_LIMIT_XCONNECT_ENGINE:-500MB}
+    environment:
+      SITECORE_LICENSE: ${SITECORE_LICENSE}
+      SITECORE_CONNECTIONSTRINGS_XCONNECT.COLLECTION: http://xconnect
+      SITECORE_CONNECTIONSTRINGS_XDB.MARKETINGAUTOMATION: Data Source=sql;Initial Catalog=Sitecore.MarketingAutomation;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_XDB.REFERENCEDATA: Data Source=sql;Initial Catalog=Sitecore.ReferenceData;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_MESSAGING: Data Source=sql;Initial Catalog=Sitecore.Messaging;User ID=sa;Password=${SQL_SA_PASSWORD}
+    depends_on:
+      - sql
+      - xconnect
+    isolation: ${ISOLATION}
+
+  xconnect-indexworker:
+    image: ${REGISTRY}sitecore-xc-xconnect-indexworker:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    entrypoint: powershell.exe -Command "& C:\\tools\\entrypoints\\worker\\Development.ps1"
+    volumes:
+      - .\data\xconnect-indexworker:C:\worker\App_Data\logs
+    mem_limit: ${MEM_LIMIT_XCONNECT_ENGINE:-500MB}
+    environment:
+      SITECORE_LICENSE: ${SITECORE_LICENSE}
+      SITECORE_CONNECTIONSTRINGS_COLLECTION: Data Source=sql;Initial Catalog=Sitecore.Xdb.Collection.ShardMapManager;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_SOLRCORE: http://solr:8983/solr/sitecore_xdb
+      SITECORE_SITECORE:XCONNECT:SEARCHINDEXER:SERVICES:SOLR.SOLRREADERSETTINGS:OPTIONS:REQUIREHTTPS: 'false'
+      SITECORE_SITECORE:XCONNECT:SEARCHINDEXER:SERVICES:SOLR.SOLRWRITERSETTINGS:OPTIONS:REQUIREHTTPS: 'false'
+    depends_on:
+      - sql
+      - solr
+    isolation: ${ISOLATION}
+
+  xconnect-processingengine:
+    image: ${REGISTRY}sitecore-xp-xconnect-processingengine:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    entrypoint: powershell.exe -Command "& C:\\tools\\entrypoints\\worker\\Development.ps1"
+    volumes:
+      - .\data\xconnect-processingengine:C:\worker\App_Data\logs
+    mem_limit: ${MEM_LIMIT_XCONNECT_ENGINE:-500MB}
+    restart: unless-stopped
+    environment:
+      SITECORE_LICENSE: ${SITECORE_LICENSE}
+      SITECORE_CONNECTIONSTRINGS_PROCESSING.ENGINE.STORAGE: Data Source=sql;Initial Catalog=Sitecore.Processing.Engine.Storage;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_PROCESSING.ENGINE.TASKS: Data Source=sql;Initial Catalog=Sitecore.Processing.Engine.Tasks;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_PROCESSING.WEBAPI.BLOB: http://xconnect
+      SITECORE_CONNECTIONSTRINGS_PROCESSING.WEBAPI.TABLE: http://xconnect
+      SITECORE_CONNECTIONSTRINGS_XCONNECT.COLLECTION: http://xconnect
+      SITECORE_CONNECTIONSTRINGS_XCONNECT.CONFIGURATION: http://xconnect
+      SITECORE_CONNECTIONSTRINGS_XCONNECT.SEARCH: http://xconnect
+      SITECORE_CONNECTIONSTRINGS_MESSAGING: Data Source=sql;Initial Catalog=Sitecore.Messaging;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_CONNECTIONSTRINGS_REPORTING: Data Source=sql;Initial Catalog=Sitecore.Reporting;User ID=sa;Password=${SQL_SA_PASSWORD}
+      SITECORE_SETTINGS:SERILOG:MINIMUMLEVEL:DEFAULT: Information
+    depends_on:
+      - sql
+      - xconnect
+    isolation: ${ISOLATION}
+
+  cm:
+    image: ${REGISTRY}sitecore-xc-sxa-standalone:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    mem_limit: ${MEM_LIMIT_WEB}
+    entrypoint: powershell.exe -NoLogo -NoProfile -File C:\\startup\\startup.ps1
+    volumes:
+      - .\data\cm\wwwroot:C:\src
+      - .\data\cm\logs:C:\inetpub\wwwroot\App_Data\logs\
+      - ..\examples\helix-basic-unicorn\src:C:\unicorn
+      - .\startup:C:\startup
+    ports:
+      - "44001:80"
+      - "44002:443"
+    networks:
+      default:
+        aliases:
+          - cm${DOMAIN_SUFFIX}
+    environment:
+        HOST_HEADER: cm${DOMAIN_SUFFIX} # multiple hosts to be separated by semicolon (;). E.g.: host1.dev.local;host2.dev.local
+        SITECORE_LICENSE: ${SITECORE_LICENSE}
+        SITECORE_APPSETTINGS_ROLE:DEFINE: Standalone
+        SITECORE_CONNECTIONSTRINGS_CORE: Data Source=sql;Initial Catalog=Sitecore.Core;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_SECURITY: Data Source=sql;Initial Catalog=Sitecore.Core;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_MASTER: Data Source=sql;Initial Catalog=Sitecore.Master;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_WEB: Data Source=sql;Initial Catalog=Sitecore.Web;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_EXPERIENCEFORMS: Data Source=sql;Initial Catalog=Sitecore.ExperienceForms;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_SOLR.SEARCH: http://solr:8983/solr
+        SITECORE_CONNECTIONSTRINGS_MESSAGING: Data Source=sql;Initial Catalog=Sitecore.Messaging;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_XDB.MARKETINGAUTOMATION: Data Source=sql;Initial Catalog=Sitecore.MarketingAutomation;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_XDB.PROCESSING.POOLS: Data Source=sql;Initial Catalog=Sitecore.Processing.Pools;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_XDB.REFERENCEDATA: Data Source=sql;Initial Catalog=Sitecore.ReferenceData;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_XDB.PROCESSING.TASKS: Data Source=sql;Initial Catalog=Sitecore.Processing.Tasks;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_EXM.MASTER: Data Source=sql;Initial Catalog=Sitecore.EXM.Master;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_REPORTING: Data Source=sql;Initial Catalog=Sitecore.Reporting;User ID=sa;Password=${SQL_SA_PASSWORD}
+        SITECORE_CONNECTIONSTRINGS_SITECORE.REPORTING.CLIENT: http://xconnect
+        SITECORE_CONNECTIONSTRINGS_XCONNECT.COLLECTION: http://xconnect
+        SITECORE_CONNECTIONSTRINGS_XDB.MARKETINGAUTOMATION.OPERATIONS.CLIENT: http://xconnect
+        SITECORE_CONNECTIONSTRINGS_XDB.MARKETINGAUTOMATION.REPORTING.CLIENT: http://xconnect
+        SITECORE_CONNECTIONSTRINGS_XDB.REFERENCEDATA.CLIENT: http://xconnect
+        SITECORE_APPSETTINGS_TELERIK.ASYNCUPLOAD.CONFIGURATIONENCRYPTIONKEY: ${TELERIK_ENCRYPTION_KEY}
+        SITECORE_APPSETTINGS_TELERIK.UPLOAD.CONFIGURATIONHASHKEY: ${TELERIK_ENCRYPTION_KEY}
+        SITECORE_APPSETTINGS_TELERIK.WEB.UI.DIALOGPARAMETERSENCRYPTIONKEY: ${TELERIK_ENCRYPTION_KEY}
+    depends_on:
+      - sql
+      - solr
+      - xconnect
+      - commerce-authoring
+      - identity
+    isolation: ${ISOLATION}
+    restart: always
+    container_name: cm${DOMAIN_SUFFIX}
+
+  commerce-authoring:
+    image: ${REGISTRY}sitecore-xc-engine-authoring:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    entrypoint: powershell.exe -NoLogo -NoProfile -File C:\\startup\\startup-commerce.ps1
+    mem_limit: ${MEM_LIMIT_COMMERCE:-1GB}
+    volumes:
+      - .\data\commerce-authoring\logs:C:\inetpub\wwwroot\wwwroot\logs
+      - .\data\commerce-authoring\wwwroot:C:\src
+      - .\startup:C:\startup
+    ports:
+      - "44005:80"
+      - "44006:443"
+    networks:
+      default:
+        aliases:
+          - commerce-authoring${DOMAIN_SUFFIX}
+    environment:
+          HOST_HEADER: commerce-authoring${DOMAIN_SUFFIX}          
+    depends_on:
+      - sql
+      - solr
+    isolation: ${ISOLATION}
+    restart: always
+    container_name: commerce-authoring${DOMAIN_SUFFIX}
+
+  commerce-minions:
+    image: ${REGISTRY}sitecore-xc-engine-minions:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    entrypoint: powershell.exe -NoLogo -NoProfile -File C:\\startup\\startup-commerce.ps1
+    mem_limit: ${MEM_LIMIT_COMMERCE:-1GB}
+    volumes:
+      - .\data\commerce-minions\logs:C:\inetpub\wwwroot\wwwroot\logs
+      - .\data\commerce-minions\wwwroot:C:\src
+      - .\startup:C:\startup
+    ports:
+      - "44010:80"
+      - "44011:443"
+    networks:
+      default:
+        aliases:
+          - commerce-minions${DOMAIN_SUFFIX}
+    environment:
+      HOST_HEADER: commerce-minions${DOMAIN_SUFFIX}          
+    depends_on:
+      - sql
+      - solr
+    isolation: ${ISOLATION}
+    container_name: commerce-minions${DOMAIN_SUFFIX}
+
+  commerce-ops:
+    image: ${REGISTRY}sitecore-xc-engine-ops:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    entrypoint: powershell.exe -NoLogo -NoProfile -File C:\\startup\\startup-commerce.ps1
+    mem_limit: ${MEM_LIMIT_COMMERCE:-1GB}
+    volumes:
+      - .\data\commerce-ops\logs:C:\inetpub\wwwroot\wwwroot\logs
+      - .\data\commerce-ops\wwwroot:C:\src 
+      - .\startup:C:\startup     
+    ports:
+      - "44015:80"
+      - "44016:443"
+    networks:
+      default:
+        aliases:
+          - commerce-ops${DOMAIN_SUFFIX}
+    environment:
+      HOST_HEADER: commerce-ops${DOMAIN_SUFFIX}          
+    depends_on:
+      - sql
+      - solr
+    isolation: ${ISOLATION}
+    container_name: commerce-ops${DOMAIN_SUFFIX}
+
+  commerce-shops:
+    image: ${REGISTRY}sitecore-xc-engine-shops:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    entrypoint: powershell.exe -NoLogo -NoProfile -File C:\\startup\\startup-commerce.ps1
+    #entrypoint: powershell.exe -Command "& C:\\tools\\entrypoints\\sitecore-xc-engine\\Development.ps1"
+    mem_limit: ${MEM_LIMIT_COMMERCE:-1GB}
+    volumes:
+      - .\data\commerce-shops\logs:C:\inetpub\wwwroot\wwwroot\logs
+      - .\data\commerce-shops\wwwroot:C:\src
+      - .\startup:C:\startup
+    ports:
+      - "44020:80"
+      - "44021:443"
+    networks:
+      default:
+        aliases:
+          - commerce-shops${DOMAIN_SUFFIX}
+    environment:
+      HOST_HEADER: commerce-shops${DOMAIN_SUFFIX}         
+    depends_on:
+      - sql
+      - solr
+    isolation: ${ISOLATION}
+    container_name: commerce-shops${DOMAIN_SUFFIX}
+
+  bizfx:
+    image: ${REGISTRY}sitecore-xc-bizfx:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    entrypoint: powershell.exe -NoLogo -NoProfile -File C:\\startup\\startup.ps1
+    mem_limit: ${MEM_LIMIT_SERVICES:-1GB}
+    volumes:
+      - ${LICENSE_PATH}:C:\license
+      - .\data\bizfx\logs:C:\inetpub\wwwroot\logs
+      - .\startup:C:\startup      
+      - .\data\bizfx\wwwroot:C:\src          
+    ports:
+      - "4200:80"
+      - "4201:443"
+    networks:
+      default:
+        aliases:
+          - bizfx${DOMAIN_SUFFIX}
+    environment:
+      HOST_HEADER: bizfx${DOMAIN_SUFFIX}        
+    depends_on:
+      - commerce-authoring
+      - identity
+    isolation: ${ISOLATION}
+    restart: always
+    container_name: bizfx${DOMAIN_SUFFIX}
+    
+  redis:
+    image: ${REGISTRY}sitecore-redis:3.0.504-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    mem_limit: ${MEM_LIMIT_SERVICES:-1GB}
+    isolation: ${ISOLATION}
+    restart: always
+
+  identity:
+    image: ${REGISTRY}sitecore-xc-identity:${SITECORE_VERSION}-windowsservercore-${WINDOWSSERVERCORE_VERSION}
+    entrypoint: powershell.exe -NoLogo -NoProfile -File C:\\startup\\startup.ps1
+    mem_limit: ${MEM_LIMIT_SERVICES:-1GB}
+    volumes:
+      - ${LICENSE_PATH}:C:\license
+      - .\data\identity\logs:C:\inetpub\wwwroot\logs
+      - .\startup:C:\startup      
+      - .\data\identity\wwwroot:C:\src      
+    ports:
+      - "44025:80"
+      - "44026:443"
+    networks:
+      default:
+        aliases:
+          - identity${DOMAIN_SUFFIX}
+    environment:
+      HOST_HEADER: identity${DOMAIN_SUFFIX}
+    depends_on:
+      - sql
+    isolation: ${ISOLATION}
+    restart: always
+    container_name: identity${DOMAIN_SUFFIX}    
